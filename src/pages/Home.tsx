@@ -8,7 +8,7 @@ const Home = () => {
       {/* Sidebar */}
       <div className="w-[400px] bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
-        <div className="flex h-16 p-4 font-bold text-xl border-b bg-cyan-700 text-white">
+        <div className="flex h-16 p-4 font-bold text-xl border-b bg-cyan-600 text-white">
           <Bars3Icon className="w-[30px] mr-8  hover:text-gray-300 cursor-pointer text-white" />
           <div>Telegram</div>
           <MagnifyingGlassIcon className="w-[30px] ml-auto  hover:text-gray-300 cursor-pointer text-white" />
@@ -41,7 +41,7 @@ const Home = () => {
         className="flex-1 flex flex-col bg-cover bg-center"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
-        <div className="h-16 flex items-center px-4 border-b border-gray-300 bg-cyan-700 backdrop-blur-md">
+        <div className="h-16 flex items-center px-4 border-b border-gray-300 bg-cyan-600 backdrop-blur-md">
           {/* Avatar nhóm */}
           <img
             src={avtGroup}
