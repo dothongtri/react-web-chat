@@ -1,40 +1,45 @@
 // App.jsx
-import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+} from "react-router-dom";
 import Login from "./components/LoginForm";
-import "./index.css";
 import Home from "./pages/Home";
-import { useEffect, useState } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext"; // ✅
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem("accessToken"));
-
-  useEffect(() => {
-      setToken(localStorage.getItem("accessToken"));
-  }, []);
+function AppRoutes() {
+  const { token } = useAuth(); // ✅ lấy từ context
 
   return (
-    <Router>
-      <Routes>
-        {/* Public route */}
-        <Route
-          path="/login"
-          element={token ? <Navigate to="/home" /> : <Login setToken={setToken} />}
-        />
-        <Route
-          path="/register"
-          element={token ? <Navigate to="/home" /> : <Login setToken={setToken} />}
-        />
+    <Routes>
+      {/* Public route */}
+      <Route
+        path="/login"
+        element={token ? <Navigate to="/home" /> : <Login />}
+      />
+      <Route
+        path="/register"
+        element={token ? <Navigate to="/home" /> : <Login />}
+      />
 
-        {/* Private route */}
-        <Route
-          path="/home"
-          element={token ? <Home /> : <Navigate to="/login" />}
-        />
+      {/* Private route */}
+      <Route path="/home" element={token ? <Home /> : <Navigate to="/login" />} />
 
-        {/* Default route */}
-        <Route path="*" element={<Navigate to={token ? "/home" : "/login"} />} />
-      </Routes>
-    </Router>
+      {/* Default route */}
+      <Route path="*" element={<Navigate to={token ? "/home" : "/login"} />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider> {/* ✅ Bọc app bằng context */}
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
   );
 }
 
