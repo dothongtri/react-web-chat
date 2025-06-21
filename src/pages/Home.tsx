@@ -13,6 +13,10 @@ interface Friend {
   username: string;
   email: string;
   avt?: string;
+  lastMessage?: string;
+  sender?: string;
+  lastMessageTime?: string;
+  unreadCount: number;
 }
 type Message = {
   fromMe: boolean;
@@ -25,41 +29,81 @@ type ReceiveMessage = {
   sender?: string;
   receiver?: string;
 };
+
+interface unreadCount {
+  senderId: BigInteger;
+  senderUsername: string;
+  unreadCount: number;
+}
+
 const Home = () => {
   const handleUnauthorized = useUnauthorizedHandler(); // gọi hook ở đầu component
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [loading, setLoading] = useState(true);
   const [receiver, setReceiver] = useState<Friend>();
   const [messages, setMessages] = useState<{ [receiver: string]: Message[] }>(
     {}
   );
 
   // Callback nhận tin nhắn từ server
-  const handleReceiveMessage = useCallback((msg: ReceiveMessage) => {
-    setMessages((prev) => {
-      if (!msg.sender) return prev;
-      const list = prev[msg.sender] || [];
-      return {
-        ...prev,
-        [msg.sender]: [
-          ...list,
-          { fromMe: false, text: msg.content, sender: msg.sender },
-        ],
-      };
-    });
-  }, []);
+  const handleReceiveMessage = useCallback(
+    async (msg: ReceiveMessage) => {
+      setMessages((prev) => {
+        if (!msg.sender) return prev;
+        const friend = friends.find((f) => f.email == msg.sender);
+        const list = prev[msg.sender] || [];
+        return {
+          ...prev,
+          [msg.sender]: [
+            ...list,
+            {
+              fromMe: false,
+              text: msg.content,
+              sender: friend?.username,
+            },
+          ],
+        };
+      });
+      // Cập nhật unreadCount và lastMessage
+      if (receiver?.email === msg.sender) {
+        // Đang xem chat này, không tăng unreadCount
+        // Có thể gọi API mark-read tại đây
+        await fetch(
+        `/api/messages/mark-read?receiverId=${user?.id}&senderId=${friends.find(f => f.email === msg.sender)?.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      } else {
+        // Không ở trong chat này, tăng unreadCount
+        setFriends((prev) =>
+          prev.map((f) =>
+            f.email === msg.sender
+              ? {
+                  ...f,
+                  unreadCount: (f.unreadCount || 0) + 1,
+                  lastMessage: msg.content,
+                }
+              : f
+          )
+        );
+      }
+    },
+    [friends]
+  );
   // Khởi tạo WebSocket chỉ 1 lần ở Home
   const { sendMessage, isConnected } = useStompClient(handleReceiveMessage);
 
   const { token, user } = useAuth(); // ✅ lấy từ context
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const fetchUsersAndUnread = async () => {
+      if (!user) return;
       try {
+        // 1. Lấy danh sách bạn bè
         const response = await fetch(`/api/friend/${user.id}/list`, {
           method: "GET",
           headers: {
@@ -71,17 +115,41 @@ const Home = () => {
           handleUnauthorized(response.status);
           return;
         }
+        const friendsData = await response.json();
+        console.log("Friends data:", friendsData);
+        setFriends(friendsData);
 
-        const data = await response.json();
-        setFriends(data); // Assuming `data` is an array of users
+        // 2. Lấy unread count sau khi đã set friends
+        const unreadRes = await fetch(
+          `/api/messages/unread-counts?userId=${user.id}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!unreadRes.ok) {
+          handleUnauthorized(unreadRes.status);
+          return;
+        }
+        const unreadData: unreadCount[] = await unreadRes.json();
+        setFriends((prev) =>
+          prev.map((friend) => {
+            const unread = unreadData.find((u) => u.senderId === friend.id);
+            return {
+              ...friend,
+              unreadCount: unread?.unreadCount || 0,
+            };
+          })
+        );
       } catch (error) {
-        console.log(error);
-      } finally {
-        setLoading(false);
+        console.error(error);
       }
     };
 
-    fetchUsers();
+    fetchUsersAndUnread();
   }, []);
 
   const handleClickUserItem = async (receiver: Friend) => {
@@ -90,7 +158,7 @@ const Home = () => {
     // Khi chọn người dùng, lấy tin nhắn đã có giữa hai người
     try {
       const response = await fetch(
-        `/api/messages?senderId=${user?.email}&receiverId=${receiver.email}`,
+        `/api/messages/list?senderId=${user?.email}&receiverId=${receiver.email}`,
         {
           method: "GET",
           headers: {
@@ -109,9 +177,27 @@ const Home = () => {
         [receiver.email]: data.map((msg: any) => ({
           fromMe: msg.sender.email === user?.email,
           text: msg.content,
-          sender: msg.sender.email,
+          sender: msg.sender.username,
         })),
       }));
+
+      // ✅ Gọi API mark-read sau khi đã lấy và hiển thị tin nhắn
+      await fetch(
+        `/api/messages/mark-read?receiverId=${user?.id}&senderId=${receiver.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      // Cập nhật unreadCount về 0 sau khi đã đọc
+      setFriends((prev) =>
+        prev.map((friend) =>
+          friend.id === receiver.id ? { ...friend, unreadCount: 0 } : friend
+        )
+      );
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
@@ -149,15 +235,23 @@ const Home = () => {
                             <div className="text-xs text-gray-400">7:15 PM</div>
                         </div>
                     ))} */}
-          {friends.map((friend, i) => (
-            <UserListItem
-              onClick={() => handleClickUserItem(friend)}
-              key={i}
-              userName={friend.username}
-              id={friend.id}
-              avt={friend.avt}
-            />
-          ))}
+          {friends.map((friend, i) => {
+            return (
+              <UserListItem
+                onClick={() => handleClickUserItem(friend)}
+                key={i}
+                userName={friend.username}
+                id={friend.id}
+                avt={friend.avt}
+                lastMessage={
+                  friend.sender === user?.email
+                    ? "You: " + (friend.lastMessage ?? "")
+                    : friend.lastMessage ?? ""
+                }
+                unreadCount={friend.unreadCount}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -177,7 +271,7 @@ const Home = () => {
           {/* Tên nhóm và thành viên */}
           <div className="flex flex-col">
             <div className="text-base font-semibold text-white">
-              {receiver?.username|| "Select a user to chat"}
+              {receiver?.username || "Select a user to chat"}
             </div>
             <div className="text-xs text-white">online</div>
           </div>

@@ -6,6 +6,8 @@ interface UserListItemResponse {
     id?: BigInteger;
     email?: string;
     onClick?: () => void;
+    lastMessage: string;
+    unreadCount: number; // Số tin nhắn chưa đọc
 }
 
 const UserListItem = (userListItemResponse: UserListItemResponse) => {
@@ -22,10 +24,21 @@ const UserListItem = (userListItemResponse: UserListItemResponse) => {
                     {userListItemResponse.userName}
                 </div>
                 <div className="text-sm text-gray-500">
-                    {"Last message preview..."}
+                    {userListItemResponse.lastMessage ||
+                        "Last message preview..."}
                 </div>
             </div>
-            <div className="text-xs text-gray-400">{"7:15 PM"}</div>
+            <div className="flex flex-col items-end gap-1">
+                {/* ✅ Badge số tin nhắn chưa đọc */}
+                {userListItemResponse.unreadCount > 0 && (
+                        <div className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                            {userListItemResponse.unreadCount > 99
+                                ? "99+"
+                                : userListItemResponse.unreadCount}
+                        </div>
+                    )}
+                <div className="text-xs text-gray-400">{"7:15 PM"}</div>
+            </div>
         </div>
     );
 };

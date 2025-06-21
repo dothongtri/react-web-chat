@@ -3,6 +3,7 @@ import telegramLogo from "../assets/256px-Telegram_2019_Logo.svg.png";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLoading } from "../context/LoadingContext";
 
 interface CredentialResponse {
     credential?: string;
@@ -22,7 +23,7 @@ interface LoginData {
 const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [loading, setLoading] = useState(false);
+    const {loading, setLoading} = useLoading();
     const [error, setError] = useState("");
     const navigate = useNavigate();
     const { login } = useAuth();

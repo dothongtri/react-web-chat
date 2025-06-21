@@ -8,6 +8,8 @@ import {
 import Login from "./components/LoginForm";
 import Home from "./pages/Home";
 import { AuthProvider, useAuth } from "./context/AuthContext"; // ✅
+import { LoadingProvider } from "./context/LoadingContext";
+import LoadingOverlay from "./components/LoadingOverlay";
 
 function AppRoutes() {
   const { token } = useAuth(); // ✅ lấy từ context
@@ -35,12 +37,16 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider> {/* ✅ Bọc app bằng context */}
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <LoadingProvider> {/* ✅ Bọc ngoài cùng */}
+      <AuthProvider> {/* ✅ Bọc tiếp theo */}
+        <Router>
+          <LoadingOverlay /> {/* ✅ Đặt ở đây để overlay luôn lắng nghe global loading */}
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </LoadingProvider>
   );
 }
+
 
 export default App;
